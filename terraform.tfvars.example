@@ -1,0 +1,128 @@
+# ============================================
+# TERRAFORM VARIABLES EXAMPLE - SIMPLIFIED
+# Copy this file to terraform.tfvars and fill in your values
+# ============================================
+
+# ============================================
+# REQUIRED: Provider & Compartment
+# ============================================
+region         = "ap-singapore-1"
+compartment_id = "ocid1.compartment.oc1..your-compartment-ocid-here"
+
+# ============================================
+# REQUIRED: SSH Key for Worker Nodes
+# ============================================
+ssh_public_key = "ssh-rsa AAAAB3... your-ssh-public-key-here"
+
+# ============================================
+# NETWORK CONFIGURATION: Public or Private?
+# ============================================
+
+# Kubernetes API Access:
+# - false (default): Private API, access via bastion/VPN
+# - true: Public API with 0.0.0.0/0:6443 ingress rule added automatically
+kubapi_subnet_is_public = false
+
+# Load Balancer Access:
+# - false (default): Private LB, internal services only  
+# - true: Public LB, can receive internet traffic
+lb_subnet_is_public = false
+
+# ============================================
+# OKE CLUSTER CONFIGURATION
+# ============================================
+cluster_name                              = "oke-cluster-dev"
+kubernetes_version                        = "v1.33.1"
+cluster_type                              = "ENHANCED_CLUSTER"
+cni_type                                  = "OCI_VCN_IP_NATIVE"
+is_kubernetes_dashboard_enabled           = false
+
+# ============================================
+# NODE POOL CONFIGURATION
+# ============================================
+node_pool_name                            = "oke-node-pool-dev"
+node_shape                                = "VM.Standard.E4.Flex"
+node_count                                = 1
+node_pool_node_shape_config_ocpus         = 2
+node_pool_node_shape_config_memory_in_gbs = 16
+boot_volume_size_in_gbs                   = 50
+max_pods_per_node                         = null
+nsg_ids                                   = []
+pod_nsg_ids                               = []
+
+# ============================================
+# COMMON DEPLOYMENT SCENARIOS
+# ============================================
+
+# Scenario 1: Production (All Private) - DEFAULT
+# kubapi_subnet_is_public = false  # Access via bastion only
+# lb_subnet_is_public     = false  # Internal services
+# Security: Most secure, requires bastion/VPN
+
+# Scenario 2: Development (Public API, Private LB)
+# kubapi_subnet_is_public = true   # Direct kubectl from anywhere
+# lb_subnet_is_public     = false  # Internal services
+# Security: API exposed on 0.0.0.0/0:6443, use for dev/test only
+# Note: Automatically adds security rule allowing 0.0.0.0/0 → 6443
+
+# Scenario 3: Public Application (Private API, Public LB)
+# kubapi_subnet_is_public = false  # Access via bastion
+# lb_subnet_is_public     = true   # Public-facing services
+# Security: API secured, LB accepts internet traffic
+
+# Scenario 4: Quick Testing (All Public)
+# kubapi_subnet_is_public = true   # Direct kubectl access
+# lb_subnet_is_public     = true   # Public services
+# Security: Everything public, use for testing only
+# Note: API exposed on 0.0.0.0/0:6443
+
+# ============================================
+# SECURITY NOTES
+# ============================================
+
+# When kubapi_subnet_is_public = true:
+# - Automatically adds ingress rule: 0.0.0.0/0 → TCP/6443
+# - Kubernetes API is accessible from anywhere
+# - ⚠️ WARNING: Use only for dev/test environments
+# - For production, keep false and use bastion host
+
+# When kubapi_subnet_is_public = false:
+# - No public ingress rules added
+# - API accessible only from within VCN
+# - Requires bastion host or VPN for external access
+# - ✅ RECOMMENDED for production
+
+# ============================================
+# AUTOSCALING CONFIGURATION
+# Add these variables to your terraform.tfvars
+# ============================================
+
+# Enable cluster autoscaling
+enable_autoscaling = true
+
+# Initial number of nodes when node pool is created
+initial_node_count = 2
+
+# Minimum number of nodes (cluster will not scale below this)
+min_node_count = 2
+
+# Maximum number of nodes (cluster will not scale above this)
+max_node_count = 5
+
+# Grace period before evicting pods during scale-down
+# Format: PT#H#M#S (e.g., PT1H = 1 hour, PT30M = 30 minutes)
+eviction_grace_duration = "PT1H"
+
+# Force delete pods after grace duration expires
+is_force_delete_after_grace_duration = false
+
+# ============================================
+# OPTIONAL: Customize node pool settings
+# (These use the same values as your main node pool by default)
+# ============================================
+
+# Uncomment to customize autoscaling node pool:
+# node_shape = "VM.Standard.E3.Flex"
+# node_pool_node_shape_config_ocpus = 2
+# node_pool_node_shape_config_memory_in_gbs = 16
+# boot_volume_size_in_gbs = 50
