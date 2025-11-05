@@ -1,19 +1,11 @@
 # ============================================
-# OKE MODULE VARIABLES - REFACTORED
-# ============================================
-
-# ============================================
-# COMMON
+# OKE MODULE VARIABLES - CLUSTER ONLY
 # ============================================
 
 variable "compartment_id" {
   description = "OCID of the compartment"
   type        = string
 }
-
-# ============================================
-# NETWORK DEPENDENCIES
-# ============================================
 
 variable "vcn_id" {
   description = "OCID of the VCN"
@@ -40,10 +32,6 @@ variable "pod_subnet_id" {
   type        = string
 }
 
-# ============================================
-# CLUSTER CONFIGURATION
-# ============================================
-
 variable "cluster_name" {
   description = "Name of the OKE cluster"
   type        = string
@@ -55,13 +43,15 @@ variable "kubernetes_version" {
 }
 
 variable "cluster_type" {
-  description = "Type of OKE cluster"
+  description = "Type of OKE cluster (BASIC_CLUSTER or ENHANCED_CLUSTER)"
   type        = string
+  default     = "ENHANCED_CLUSTER"
 }
 
 variable "cni_type" {
-  description = "CNI type for pod networking"
+  description = "CNI type for pod networking (OCI_VCN_IP_NATIVE or FLANNEL_OVERLAY)"
   type        = string
+  default     = "OCI_VCN_IP_NATIVE"
 }
 
 variable "is_public_ip_enabled" {
@@ -72,58 +62,5 @@ variable "is_public_ip_enabled" {
 variable "is_kubernetes_dashboard_enabled" {
   description = "Whether to enable the Kubernetes Dashboard"
   type        = bool
-}
-
-# ============================================
-# NODE POOL CONFIGURATION
-# ============================================
-
-variable "node_pool_name" {
-  description = "Name of the worker node pool"
-  type        = string
-}
-
-variable "node_shape" {
-  description = "Shape of the worker nodes"
-  type        = string
-}
-
-variable "node_count" {
-  description = "Number of worker nodes"
-  type        = number
-}
-
-variable "node_pool_node_shape_config_ocpus" {
-  description = "Number of OCPUs for worker nodes"
-  type        = number
-}
-
-variable "node_pool_node_shape_config_memory_in_gbs" {
-  description = "Memory in GBs for worker nodes"
-  type        = number
-}
-
-variable "boot_volume_size_in_gbs" {
-  description = "Size of the boot volume for worker nodes in GB"
-  type        = number
-}
-
-variable "ssh_public_key" {
-  description = "SSH public key for accessing worker nodes"
-  type        = string
-}
-
-variable "max_pods_per_node" {
-  description = "Maximum number of pods per node"
-  type        = number
-}
-
-variable "nsg_ids" {
-  description = "List of Network Security Group OCIDs"
-  type        = list(string)
-}
-
-variable "pod_nsg_ids" {
-  description = "List of Network Security Group OCIDs for pods"
-  type        = list(string)
+  default     = false
 }

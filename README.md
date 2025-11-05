@@ -1,19 +1,36 @@
-# 🚀 OCI OKE Terraform - Refactored & Production-Ready
+# 🚀 OCI OKE Terraform - Autoscaling Workshop
 
-Terraform configuration for deploying Oracle Kubernetes Engine (OKE) clusters on Oracle Cloud Infrastructure with **configurable public/private networking**.
+Terraform configuration for deploying Oracle Kubernetes Engine (OKE) clusters with **cluster autoscaling** on Oracle Cloud Infrastructure. This module is specifically designed for demonstrating and learning OKE autoscaling capabilities.
 
 ## ✨ Key Features
 
-- ✅ **Configurable Public/Private Subnets** - Simple boolean flags for KubeAPI and LB
+- ✅ **Autoscaling-First Design** - Single autoscaling node pool (no regular node pool)
+- ✅ **Configurable Autoscaling** - Set min/max nodes and watch the magic happen
 - ✅ **VCN-Native Pod Networking** - High performance with OCI_VCN_IP_NATIVE
-- ✅ **Clean Modular Structure** - Well-organized and maintainable
-- ✅ **Security Best Practices** - Based on OCI recommendations
-- ✅ **Input Validation** - Prevents common configuration errors
-- ✅ **Comprehensive Outputs** - Get all the information you need
+- ✅ **Bastion Host Support** - Secure access for private API endpoints
+- ✅ **Production-Ready** - Based on OCI best practices
+- ✅ **Workshop-Optimized** - Clear structure for learning autoscaling
+
+## 🎯 What's Different from Regular OKE?
+
+This module focuses **exclusively on autoscaling**:
+
+| Feature | Regular OKE Module | Autoscaling Workshop Module |
+|---------|-------------------|----------------------------|
+| Node Pools | Regular + Autoscaling | **Autoscaling Only** |
+| Use Case | General OKE deployments | **Learning autoscaling** |
+| Node Count | Fixed size | **Dynamic (min to max)** |
+| Cluster Autoscaler | Optional | **Required** |
 
 ## 🎯 Quick Start
 
-### 1. Configure Your Deployment
+### 1. Prerequisites
+
+- OCI Account with appropriate permissions
+- Terraform >= 1.0
+- SSH key pair generated
+
+### 2. Configure Your Deployment
 
 ```bash
 # Copy the example configuration
@@ -29,12 +46,14 @@ region         = "ap-singapore-1"
 compartment_id = "ocid1.compartment.oc1..your-ocid"
 ssh_public_key = "ssh-rsa AAAAB3..."
 
-# Choose your configuration:
-kubapi_subnet_is_public = false  # Private (access via bastion)
-lb_subnet_is_public     = false  # Private (internal services only)
+# Autoscaling configuration
+enable_autoscaling = true
+initial_node_count = 1
+min_node_count     = 1
+max_node_count     = 5
 ```
 
-### 2. Deploy
+### 3. Deploy
 
 ```bash
 terraform init
@@ -44,124 +63,142 @@ terraform apply
 
 **Deployment time:** ~12-15 minutes
 
-### 3. Access Your Cluster
+### 4. Deploy Cluster Autoscaler
+
+After the infrastructure is ready, deploy the cluster autoscaler:
 
 ```bash
 # Get kubeconfig
 terraform output -raw kubeconfig > ~/.kube/config
 
-# If kubapi is private, set up tunnel via bastion
-# If kubapi is public, use directly
-kubectl get nodes
+# If using private API, setup SSH tunnel first
+# (see "Accessing the Cluster" section)
+
+# Deploy cluster autoscaler (see workshop instructions)
+kubectl apply -f cluster-autoscaler.yaml
 ```
 
-## 📊 Configuration Options
+### 5. Test Autoscaling
 
-### Public vs Private Subnets
+```bash
+# Watch nodes in real-time
+kubectl get nodes -w
 
-| Configuration | Use Case | Access Method |
-|---------------|----------|---------------|
-| **Both Private** (default) | Production, highest security | Bastion host or VPN |
-| **KubeAPI Public** | Development, remote access | Direct kubectl access |
-| **LB Public** | Public-facing applications | Internet → LB → Apps |
-| **Both Public** | Quick testing | Direct access to everything |
+# Deploy a test workload that triggers scaling
+kubectl apply -f test-autoscaling-deployment.yaml
 
-### Simple Configuration Examples
-
-#### Private Cluster (Production)
-```hcl
-kubapi_subnet_is_public = false
-lb_subnet_is_public     = false
+# Observe nodes being added automatically
+# When you delete the deployment, nodes will scale down
 ```
 
-#### Public API, Private LB (Development)
+## 📊 Autoscaling Configuration Options
+
+### Development Environment
 ```hcl
-kubapi_subnet_is_public = true
-lb_subnet_is_public     = false
+enable_autoscaling = true
+initial_node_count = 1
+min_node_count     = 0   # Can scale to zero
+max_node_count     = 3
 ```
 
-#### Public LB, Private API (Public Apps)
+### Production Environment
 ```hcl
-kubapi_subnet_is_public = false
-lb_subnet_is_public     = true
+enable_autoscaling = true
+initial_node_count = 2
+min_node_count     = 2   # Always maintain capacity
+max_node_count     = 10
 ```
 
-#### All Public (Testing)
+### Testing/Fixed Size
 ```hcl
-kubapi_subnet_is_public = true
-lb_subnet_is_public     = true
+enable_autoscaling = false  # Disable autoscaling
+initial_node_count = 1
+min_node_count     = 1
+max_node_count     = 1
 ```
 
 ## 📁 Project Structure
 
 ```
-.
-├── main.tf                    # Root orchestration
-├── variables.tf               # Root variables with validation
-├── outputs.tf                 # Consolidated outputs
-├── provider.tf                # OCI provider configuration
-├── versions.tf                # Terraform version requirements
-├── terraform.tfvars.example   # Configuration template
-├── README.md                  # This file
+oci-oke-terraform-autoscaling/
+├── main.tf                      # Root orchestration (networking + OKE + autoscaling + bastion)
+├── variables.tf                 # Root variables (autoscaling-focused)
+├── outputs.tf                   # Root outputs (includes autoscaling info)
+├── terraform.tfvars.example     # Example configuration
+├── README.md                    # This file
 │
-└── modules/
-    ├── networking/
-    │   ├── main.tf            # Network resources
-    │   ├── variables.tf       # Network inputs
-    │   ├── outputs.tf         # Network outputs
-    │   └── data.tf            # OCI services data
-    │
-    └── oke/
-        ├── main.tf            # Cluster and node pool
-        ├── variables.tf       # OKE inputs
-        ├── outputs.tf         # OKE outputs
-        └── data.tf            # Images and ADs
+├── modules/
+│   ├── networking/              # VCN, subnets, gateways, routing
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   │
+│   ├── oke/                     # Cluster ONLY (no node pool)
+│   │   ├── main.tf              # Creates cluster, no node pool
+│   │   ├── variables.tf         # Cluster configuration only
+│   │   ├── outputs.tf           # Cluster outputs
+│   │   └── data.tf              # Data sources for cluster
+│   │
+│   ├── autoscaling/             # Autoscaling node pool
+│   │   ├── main.tf              # Node pool with autoscaling
+│   │   ├── variables.tf         # Autoscaling configuration
+│   │   ├── outputs.tf           # Node pool outputs
+│   │   └── data.tf              # Data sources for nodes
+│   │
+│   └── bastion/                 # Bastion host (optional but recommended)
+│       ├── main.tf
+│       ├── variables.tf
+│       └── outputs.tf
 ```
 
-## 🏗️ What Gets Deployed
+## 🎓 Understanding Autoscaling
 
-### Networking Resources
-- **VCN** - Virtual Cloud Network (10.0.0.0/16)
-- **Subnets** - 4 regional subnets:
-  - KubeAPI: 10.0.0.0/29 (configurable public/private)
-  - Workers: 10.0.1.0/24 (always private)
-  - Pods: 10.0.32.0/19 (always private)
-  - LB: 10.0.2.0/24 (configurable public/private)
-- **Gateways**:
-  - Internet Gateway (for public subnets)
-  - NAT Gateway (for private subnet internet access)
-  - Service Gateway (for OCI services)
-- **Route Tables** - Dynamic routing based on subnet configuration
-- **Security Lists** - OCI best practice security rules
+### How It Works
 
-### OKE Resources
-- **OKE Cluster** - Enhanced cluster with VCN-native networking
-- **Node Pool** - Managed worker nodes with flexible shapes
-- **Configuration** - CNI, pod networking, and security
+1. **Initial State**: Cluster starts with `initial_node_count` nodes
+2. **Scale Up Trigger**: When pods are pending due to insufficient resources
+3. **Scale Up Action**: Autoscaler adds nodes (up to `max_node_count`)
+4. **Scale Down Trigger**: When nodes are underutilized for ~10 minutes
+5. **Scale Down Action**: Autoscaler removes nodes (down to `min_node_count`)
 
-## 🔒 Security
+### Key Components
 
-### Default Security Posture
-- All subnets **private by default**
-- Worker nodes have no public IPs
-- Pods use private IPs from dedicated subnet
-- Internet access via NAT Gateway
-- OCI service access via Service Gateway
+```
+┌─────────────────────────────────────────────────────┐
+│              OKE Cluster                            │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐  │
+│  │         Cluster Autoscaler                   │  │
+│  │  (Monitors pod scheduling & node usage)      │  │
+│  └──────────────────────────────────────────────┘  │
+│                       │                             │
+│                       ▼                             │
+│  ┌──────────────────────────────────────────────┐  │
+│  │       Autoscaling Node Pool                  │  │
+│  │                                              │  │
+│  │  [Node 1] [Node 2] ... [Node N]             │  │
+│  │   min: 1              max: 5                 │  │
+│  └──────────────────────────────────────────────┘  │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
 
-### Security Lists
-Based on OCI best practices for OKE with VCN-native pod networking:
-- Minimum required ingress rules
-- Egress rules for OCI services
-- Path discovery (ICMP) rules
-- SSH access to workers (optional)
+### Important Variables
+
+| Variable | Description | Impact |
+|----------|-------------|---------|
+| `enable_autoscaling` | Enable/disable autoscaling | Must be `true` |
+| `initial_node_count` | Starting number of nodes | Initial capacity |
+| `min_node_count` | Minimum nodes maintained | Never scales below |
+| `max_node_count` | Maximum nodes allowed | Never scales above |
+| `eviction_grace_duration` | Time to wait before forcing pod eviction | Affects scale-down speed |
 
 ## 🔧 Advanced Configuration
 
-### Node Pool Customization
+### Node Shape Customization
 
 ```hcl
-node_shape    = "VM.Standard.E4.Flex"
-node_count    = 3
+node_shape                                = "VM.Standard.E4.Flex"
 node_pool_node_shape_config_ocpus         = 4
 node_pool_node_shape_config_memory_in_gbs = 32
 boot_volume_size_in_gbs                   = 100
@@ -170,23 +207,21 @@ boot_volume_size_in_gbs                   = 100
 ### Network Customization
 
 ```hcl
-vcn_cidr         = "172.16.0.0/16"
-vcn_display_name = "my-custom-vcn"
-vcn_dns_label    = "mycluster"
+vcn_cidr                = "172.16.0.0/16"
+kubapi_subnet_is_public = false  # Private (recommended)
+lb_subnet_is_public     = true   # Public load balancers
 ```
 
-### Cluster Options
+### Eviction Settings
 
 ```hcl
-kubernetes_version                 = "v1.33.1"
-cluster_type                       = "ENHANCED_CLUSTER"
-cni_type                           = "OCI_VCN_IP_NATIVE"
-is_kubernetes_dashboard_enabled    = true
+eviction_grace_duration              = "PT60M"  # 60 minutes
+is_force_delete_after_grace_duration = false    # Don't force delete
 ```
 
 ## 📊 Outputs
 
-After deployment, you'll get:
+After deployment, you'll get comprehensive information:
 
 ```bash
 # View all outputs
@@ -195,48 +230,106 @@ terraform output
 # Get kubeconfig
 terraform output -raw kubeconfig > ~/.kube/config
 
-# Get cluster endpoint
-terraform output cluster_endpoint
+# View autoscaling configuration
+terraform output autoscaling_configuration
 
-# View configuration summary
-terraform output configuration_summary
+# View deployment summary
+terraform output deployment_summary
+
+# Get quick start commands
+terraform output quick_start_commands
 ```
 
 ## 🎯 Accessing the Cluster
 
-### Private KubeAPI (Default)
-
-Access via bastion host:
+### Private KubeAPI (Recommended - Default)
 
 ```bash
-# 1. Create bastion session in OCI Console
-# 2. Set up SSH tunnel
-ssh -i key.pem -N -L 6443:<api-private-ip>:6443 -p 22 \
-  ocid1.bastionsession...@host.bastion.region.oci.oraclecloud.com
+# 1. Get bastion IP
+terraform output bastion_public_ip
 
-# 3. Update kubeconfig server to localhost
-# Change: https://10.0.0.x:6443
-# To:     https://127.0.0.1:6443
+# 2. Setup SSH tunnel
+ssh -i <private_key> -N -L 6443:<cluster-private-ip>:6443 opc@<bastion-ip>
+
+# 3. Update kubeconfig
+# Change server from: https://10.0.0.x:6443
+# To: https://127.0.0.1:6443
 
 # 4. Use kubectl
 kubectl get nodes
 ```
 
-### Public KubeAPI
-
-Direct access:
+### Public KubeAPI (Development Only)
 
 ```bash
-# Get kubeconfig
-terraform output -raw kubeconfig > ~/.kube/config
+# Set in terraform.tfvars
+kubapi_subnet_is_public = true
 
-# Use kubectl directly
+# Get kubeconfig and use directly
+terraform output -raw kubeconfig > ~/.kube/config
 kubectl get nodes
+```
+
+## 🧪 Testing Autoscaling
+
+### 1. Deploy Test Workload
+
+Create a deployment that will trigger autoscaling:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autoscale-test
+spec:
+  replicas: 10  # More than current capacity
+  selector:
+    matchLabels:
+      app: autoscale-test
+  template:
+    metadata:
+      labels:
+        app: autoscale-test
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+```
+
+### 2. Monitor Scaling
+
+```bash
+# Watch nodes being added
+kubectl get nodes -w
+
+# Check pending pods
+kubectl get pods
+
+# View autoscaler logs
+kubectl logs -n kube-system deployment/cluster-autoscaler
+```
+
+### 3. Test Scale Down
+
+```bash
+# Delete the deployment
+kubectl delete deployment autoscale-test
+
+# Watch nodes being removed (after ~10 minutes)
+kubectl get nodes -w
 ```
 
 ## 🧹 Cleanup
 
 ```bash
+# Delete all Kubernetes resources first
+kubectl delete all --all --all-namespaces
+
+# Then destroy infrastructure
 terraform destroy
 ```
 
@@ -244,100 +337,105 @@ terraform destroy
 
 ## 🔍 Troubleshooting
 
-### Pod Network Configuration Timeout
+### Autoscaler Not Scaling Up
 
-If you see this error, check:
-1. Security lists allow traffic between workers, pods, and API
-2. Service Gateway is configured for your region
-3. Route tables have correct Service Gateway routes
+**Check:**
+1. Are there pending pods? `kubectl get pods -A`
+2. Is autoscaler running? `kubectl get deployment -n kube-system cluster-autoscaler`
+3. Check logs: `kubectl logs -n kube-system deployment/cluster-autoscaler`
+4. Verify IAM policies allow node creation
+
+### Autoscaler Not Scaling Down
+
+**Check:**
+1. Has utilization been low for 10+ minutes?
+2. Are there DaemonSets preventing node drain?
+3. Check node annotations: `kubectl describe node <node-name>`
+4. Review autoscaler logs for scale-down events
 
 ### Cannot Access Cluster
 
-**Private KubeAPI:**
-- Ensure bastion tunnel is active
+**Private API:**
+- Ensure SSH tunnel is active
 - Verify kubeconfig points to 127.0.0.1:6443
+- Check bastion security rules
 
-**Public KubeAPI:**
-- Check security list allows your IP
-- Verify kubeconfig has correct public endpoint
+**Public API:**
+- Verify security list allows your IP
+- Check kubeconfig has correct endpoint
 
 ## 📝 Best Practices
 
+### Autoscaling
+- ✅ Start with conservative `min_node_count` for production
+- ✅ Set `max_node_count` based on quota and budget
+- ✅ Monitor autoscaling behavior and adjust thresholds
+- ✅ Use pod disruption budgets for graceful scaling
+- ✅ Set appropriate resource requests on pods
+
 ### Security
-- ✅ Use private subnets for production
-- ✅ Implement Network Security Groups (NSGs) for fine-grained control
+- ✅ Use private API endpoint (default in this module)
+- ✅ Access cluster via bastion host
+- ✅ Implement Network Security Groups
 - ✅ Rotate SSH keys regularly
-- ✅ Use bastion for administrative access
 - ✅ Enable audit logging
 
-### Operations
-- ✅ Use remote state (OCI Object Storage)
-- ✅ Implement state locking
-- ✅ Use workspaces for multi-environment
-- ✅ Tag all resources appropriately
-- ✅ Monitor cluster and node metrics
-
 ### Cost Optimization
-- ✅ Use appropriate node shapes
-- ✅ Implement cluster autoscaling
-- ✅ Use spot instances for non-critical workloads
-- ✅ Clean up unused load balancers
-- ✅ Review and right-size regularly
+- ✅ Use `min_node_count = 0` for dev environments
+- ✅ Set appropriate `eviction_grace_duration`
+- ✅ Right-size node shapes
+- ✅ Monitor actual usage vs capacity
+- ✅ Use spot instances for non-critical workloads (future enhancement)
 
-## 🚀 What's New in This Refactor
+## 🚀 What Makes This Different?
 
-### Improvements Over Original
-1. **Simplified Configuration** - Just 2 boolean flags for public/private
-2. **Better Organization** - Clear separation of concerns
-3. **Input Validation** - Catch errors before apply
-4. **Comprehensive Outputs** - All the info you need
-5. **Clean Code** - Removed duplicates and complexity
-6. **Better Documentation** - Clear examples and explanations
+### Compared to oci-oke-terraform-refactored
 
-### Breaking Changes
-- Removed complex `subnets` variable override
-- Simplified to `kubapi_subnet_is_public` and `lb_subnet_is_public`
-- Updated module structure and naming
+1. **Single Purpose**: Focused exclusively on autoscaling
+2. **No Regular Node Pool**: Only autoscaling node pool exists
+3. **Simplified Configuration**: Variables optimized for autoscaling
+4. **Workshop Ready**: Clear examples and documentation
+5. **Autoscaler Required**: Infrastructure designed for autoscaler deployment
 
-### Migration from Old Version
-```bash
-# 1. Backup current state
-cp terraform.tfstate terraform.tfstate.backup
+## 📚 Workshop Flow
 
-# 2. Update configuration files
-# Replace old files with refactored versions
+1. **Deploy Infrastructure** (this Terraform module)
+   - Creates VCN, subnets, OKE cluster
+   - Creates autoscaling node pool (initially 1 node)
+   - Creates bastion host
 
-# 3. Update terraform.tfvars
-# Change from complex subnet definitions to simple boolean flags
-kubapi_subnet_is_public = false
-lb_subnet_is_public     = false
+2. **Deploy Cluster Autoscaler** (Kubernetes manifests)
+   - Install autoscaler in kube-system namespace
+   - Configure to watch your node pool
+   - Grant necessary IAM permissions
 
-# 4. Review plan carefully
-terraform plan
+3. **Test Autoscaling** (Workshop exercises)
+   - Deploy workloads exceeding capacity
+   - Watch nodes being added
+   - Remove workloads
+   - Watch nodes being removed
 
-# 5. Apply if changes look correct
-terraform apply
-```
+4. **Understand Metrics** (Monitoring)
+   - View autoscaler decisions
+   - Monitor node utilization
+   - Analyze scaling patterns
 
 ## 🤝 Contributing
 
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Test thoroughly
-4. Submit a pull request
+Found an issue or have a suggestion? Please open an issue or pull request!
 
 ## 📄 License
 
-MIT License - use freely for your projects
+This project is licensed under the MIT License.
 
-## 🙏 Acknowledgments
+## 🆘 Support
 
-- Based on OCI best practices for OKE
-- VCN-native pod networking architecture
-- Security list configurations from OCI documentation
+For issues related to:
+- **This Terraform module**: Open a GitHub issue
+- **OKE platform**: Consult OCI documentation
+- **Kubernetes**: Check Kubernetes documentation
+- **Cluster Autoscaler**: See cluster-autoscaler documentation
 
 ---
 
-**Questions?** Open an issue on GitHub
-**Feedback?** PRs welcome!
+**Happy Autoscaling! 🎉**

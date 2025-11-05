@@ -149,16 +149,6 @@ variable "node_shape" {
   default     = "VM.Standard.E3.Flex"
 }
 
-variable "node_count" {
-  description = "Number of worker nodes in the node pool"
-  type        = number
-  default     = 2
-  validation {
-    condition     = var.node_count > 0 && var.node_count <= 1000
-    error_message = "node_count must be between 1 and 1000."
-  }
-}
-
 variable "node_pool_node_shape_config_ocpus" {
   description = "Number of OCPUs for flex worker nodes"
   type        = number
@@ -372,6 +362,8 @@ variable "tags" {
     "Project"   = "OKE-Workshop"
   }
 }
+
+
 
 # ============================================
 # AUTOSCALING VARIABLES

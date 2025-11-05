@@ -1,5 +1,5 @@
 # ============================================
-# OKE MODULE OUTPUTS - REFACTORED
+# OKE MODULE OUTPUTS - CLUSTER ONLY
 # ============================================
 
 output "cluster_id" {
@@ -20,21 +20,6 @@ output "cluster_kubernetes_version" {
 output "cluster_endpoint" {
   description = "Kubernetes API endpoint"
   value       = oci_containerengine_cluster.cluster.endpoints[0].kubernetes
-}
-
-output "node_pool_id" {
-  description = "OCID of the node pool"
-  value       = oci_containerengine_node_pool.node_pool.id
-}
-
-output "node_pool_name" {
-  description = "Name of the node pool"
-  value       = oci_containerengine_node_pool.node_pool.name
-}
-
-output "node_pool_kubernetes_version" {
-  description = "Kubernetes version of the node pool"
-  value       = oci_containerengine_node_pool.node_pool.kubernetes_version
 }
 
 output "kubeconfig" {

@@ -1,6 +1,6 @@
 # ============================================
-# ROOT MAIN - WITH BASTION MODULE
-# Orchestrates networking, OKE, and bastion modules
+# ROOT MAIN - AUTOSCALING WORKSHOP
+# Orchestrates networking, OKE cluster (no node pool), autoscaling node pool, and bastion
 # ============================================
 
 # ============================================
@@ -31,7 +31,8 @@ module "networking" {
 
 # ============================================
 # OKE MODULE
-# Creates Kubernetes cluster and node pool
+# Creates Kubernetes cluster ONLY (no node pool)
+# Node pool is created by autoscaling module
 # ============================================
 
 module "oke" {
@@ -54,23 +55,11 @@ module "oke" {
   cni_type                        = var.cni_type
   is_kubernetes_dashboard_enabled = var.is_kubernetes_dashboard_enabled
   is_public_ip_enabled            = var.kubapi_subnet_is_public
-
-  # Node Pool Configuration
-  node_pool_name                            = var.node_pool_name
-  node_shape                                = var.node_shape
-  node_count                                = var.node_count
-  node_pool_node_shape_config_ocpus         = var.node_pool_node_shape_config_ocpus
-  node_pool_node_shape_config_memory_in_gbs = var.node_pool_node_shape_config_memory_in_gbs
-  boot_volume_size_in_gbs                   = var.boot_volume_size_in_gbs
-  ssh_public_key                            = var.ssh_public_key
-  max_pods_per_node                         = var.max_pods_per_node
-  nsg_ids                                   = var.nsg_ids
-  pod_nsg_ids                               = var.pod_nsg_ids
 }
 
 # ============================================
 # AUTOSCALING MODULE
-# Add this to your main.tf after the OKE module
+# Creates node pool with autoscaling enabled
 # ============================================
 
 module "autoscaling" {
@@ -80,18 +69,18 @@ module "autoscaling" {
   compartment_id = var.compartment_id
   cluster_id     = module.oke.cluster_id
 
-  # Network dependencies - USE CORRECT SUBNET KEYS!
-  worker_subnet_id = module.networking.subnet_ids["workernode"]  # NOT "workers"
-  pod_subnet_id    = module.networking.subnet_ids["pod"]         # NOT "pods"
+  # Network dependencies
+  worker_subnet_id = module.networking.subnet_ids["workernode"]
+  pod_subnet_id    = module.networking.subnet_ids["pod"]
 
   # Node pool configuration
-  node_pool_name                        = "${var.cluster_name}-autoscaling-pool"
-  kubernetes_version                    = var.kubernetes_version
-  node_shape                            = var.node_shape
-  node_pool_node_shape_config_ocpus     = var.node_pool_node_shape_config_ocpus
+  node_pool_name                            = "${var.cluster_name}-autoscale-pool"
+  kubernetes_version                        = var.kubernetes_version
+  node_shape                                = var.node_shape
+  node_pool_node_shape_config_ocpus         = var.node_pool_node_shape_config_ocpus
   node_pool_node_shape_config_memory_in_gbs = var.node_pool_node_shape_config_memory_in_gbs
-  boot_volume_size_in_gbs               = var.boot_volume_size_in_gbs
-  ssh_public_key                        = var.ssh_public_key
+  boot_volume_size_in_gbs                   = var.boot_volume_size_in_gbs
+  ssh_public_key                            = var.ssh_public_key
   
   cni_type          = var.cni_type
   max_pods_per_node = var.max_pods_per_node
@@ -99,26 +88,26 @@ module "autoscaling" {
   pod_nsg_ids       = var.pod_nsg_ids
 
   # Autoscaling configuration
-  enable_autoscaling   = var.enable_autoscaling
-  initial_node_count   = var.initial_node_count
-  min_node_count       = var.min_node_count
-  max_node_count       = var.max_node_count
+  enable_autoscaling                       = var.enable_autoscaling
+  initial_node_count                       = var.initial_node_count
+  min_node_count                           = var.min_node_count
+  max_node_count                           = var.max_node_count
   
-  eviction_grace_duration              = var.eviction_grace_duration
-  is_force_delete_after_grace_duration = var.is_force_delete_after_grace_duration
+  eviction_grace_duration                  = var.eviction_grace_duration
+  is_force_delete_after_grace_duration     = var.is_force_delete_after_grace_duration
   
   # Tagging
   freeform_tags = {
     "Environment" = "Development"
     "ManagedBy"   = "Terraform"
-    "Purpose"     = "Autoscaling"
+    "Purpose"     = "Autoscaling-Workshop"
   }
 }
 
-
 # ============================================
-# BASTION MODULE
+# BASTION MODULE (OPTIONAL)
 # Creates bastion host for cluster access
+# Set enable_bastion = false if not needed
 # ============================================
 
 module "bastion" {
@@ -126,7 +115,7 @@ module "bastion" {
   
   # Only create bastion if enabled
   count = var.enable_bastion ? 1 : 0
-
+  
   # Common
   compartment_id = var.compartment_id
   region         = var.region
@@ -147,8 +136,8 @@ module "bastion" {
   
   # Access Control
   allowed_ssh_cidr = var.bastion_allowed_ssh_cidr
-  ssh_public_key   = var.ssh_public_key  # Same key as nodes
-  ssh_private_key  = var.ssh_private_key  # Optional for provisioning
+  ssh_public_key   = var.ssh_public_key
+  ssh_private_key  = var.ssh_private_key
   
   # Instance Configuration
   bastion_display_name = var.bastion_display_name
