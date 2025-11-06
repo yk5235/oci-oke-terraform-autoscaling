@@ -131,7 +131,9 @@ locals {
         { stateless = false, destination = "0.0.0.0/0", destination_type = "CIDR_BLOCK", protocol = "1", description = "Path Discovery", icmp_options = { type = 3, code = 4 } },
         { stateless = false, destination = "OCI_SERVICES", destination_type = "SERVICE_CIDR_BLOCK", protocol = "6", description = "Worker to OKE" },
         { stateless = false, destination = "10.0.0.0/29", destination_type = "CIDR_BLOCK", protocol = "6", description = "Worker to API (6443)", tcp_options = { min = 6443, max = 6443 } },
-        { stateless = false, destination = "10.0.0.0/29", destination_type = "CIDR_BLOCK", protocol = "6", description = "Worker to API (12250)", tcp_options = { min = 12250, max = 12250 } }
+        { stateless = false, destination = "10.0.0.0/29", destination_type = "CIDR_BLOCK", protocol = "6", description = "Worker to API (12250)", tcp_options = { min = 12250, max = 12250 } },
+        { stateless = false, destination = "0.0.0.0/0", destination_type = "CIDR_BLOCK", protocol = "6", description = "Worker to dockerhub", tcp_options = { min = 443, max = 443 } },
+        { stateless = false, destination = "0.0.0.0/0", destination_type = "CIDR_BLOCK", protocol = "6", description = "Worker to dockerhub", tcp_options = { min = 80, max = 80 } },
       ]
     }
     sl_pod = {
